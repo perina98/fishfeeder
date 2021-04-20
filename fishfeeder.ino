@@ -23,6 +23,8 @@ String last_t = "Nie";
 int hours = 20;
 int minutes = 0;
 bool fed = false;
+float temperatureC_s1 = 0;
+float temperatureC_s2 = 0;
 
 
 // Setting up IP config (https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/soft-access-point-class.html)
@@ -35,12 +37,15 @@ ESP8266WebServer server(80);
 
 // GPIO where the DS18B20 is connected to
 const int oneWireBus = D3;     
+const int secondWireBus = D6;    
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(oneWireBus);
+OneWire secondWire(secondWireBus);
 
 // Pass our oneWire reference to Dallas Temperature sensor 
-DallasTemperature sensors(&oneWire);
+DallasTemperature sensor1(&oneWire);
+DallasTemperature sensor2(&secondWire);
 
 void setup() {
       WiFi.config(local_ip,dns, gateway, subnet);
@@ -54,17 +59,18 @@ server.on("/", connect);
   // Start the Serial Monitor
   Serial.begin(115200);
   // Start the DS18B20 sensor
-  sensors.begin();
+  sensor1.begin();
+  sensor2.begin();
   // set up the LCD's number of columns and rows:
   configTime(2 * 3600, 0, "pool.ntp.org", "time.nist.gov");
 
     lcd.begin();
-
-  lcd.backlight();
+lcd.noBacklight();
   lcd.clear();
   
     myservo.attach(servo_pin);
     myservo.write(0);
+    myservo.detach();
 }
 
 void connect()
@@ -86,6 +92,7 @@ void generate()
     angle = server.arg(0).toInt();
     if (angle == 360)
     {
+        myservo.attach(servo_pin);
        for (int i = 0; i <= 90; i++)
         {
             myservo.write(i);
@@ -102,14 +109,17 @@ void generate()
         last = String(local->tm_hour);
         last += ":";
         last += String(local->tm_min);
+        myservo.detach();
     }
     else
     {
+      myservo.attach(servo_pin);
         for (int i = 0; i <= angle; i++)
         {
             myservo.write(i);
             delay(10);
         }
+        myservo.detach();
     }
 
     server.send(200, "text/html", html(0,String(ctime(&tnow))));
@@ -119,40 +129,54 @@ void generate()
 void loop() {
   server.handleClient();
   time_t now = time(nullptr);
-  sensors.requestTemperatures(); 
-  float temperatureC = sensors.getTempCByIndex(0);
-  float temperatureF = sensors.getTempFByIndex(0);
-  Serial.print(temperatureC);
-  Serial.println("ºC");
-  Serial.print(temperatureF);
-  Serial.println("ºF");
-  lcd.print("Aktualny Cas: ");
-  tm* local = localtime(&now);
-  lcd.print(local->tm_hour);
-  lcd.print(":");
-  lcd.print(local->tm_min);
- lcd.setCursor(0, 1);
-  lcd.print("Teplota: ");
-  lcd.print(temperatureC);
-  lcd.print(" C");
-   lcd.setCursor(0, 2);
-   lcd.print("Posledne: ");
-   lcd.print(last);
-   lcd.setCursor(0, 3);
-   lcd.print("Planovane: ");
-   lcd.print(hours);
-    lcd.print(":");
-  lcd.print(minutes);
+  sensor1.requestTemperatures(); 
+  sensor2.requestTemperatures();
+  temperatureC_s1 = sensor1.getTempCByIndex(0);
+  temperatureC_s2 = sensor2.getTempCByIndex(0);
+  float temperatureF = sensor1.getTempFByIndex(0);
   
-  Serial.println(localtime(&now)->tm_hour);
- delay(1000);
-  lcd.clear();
+  tm* local = localtime(&now);
+
+  if(local->tm_sec < 2){
+    lcd.clear();
+    lcd.print("Aktualny Cas: ");
+    lcd.print(local->tm_hour);
+    lcd.print(":");
+    if(local->tm_min == 0){
+      lcd.print("00");
+      }else{
+        if(local->tm_min < 10){
+          lcd.print("0");
+          }
+    lcd.print(local->tm_min);}
+   lcd.setCursor(0, 1);
+    lcd.print("Temp: ");
+    lcd.print(temperatureC_s1);
+    lcd.print("/");
+    lcd.print(temperatureC_s2);
+    lcd.print(" C");
+     lcd.setCursor(0, 2);
+     lcd.print("Posledne: ");
+     lcd.print(last);
+     lcd.setCursor(0, 3);
+     lcd.print("Planovane: ");
+     lcd.print(hours);
+      lcd.print(":");
+      if(minutes == 0){
+        lcd.print("00");
+        } else{
+    lcd.print(minutes);
+        }
+  }
+
+  
  if(local->tm_hour == hours && local->tm_min == minutes+1){
   fed = false;
   }
 
   if(local->tm_hour == hours && local->tm_min == minutes &&  local->tm_sec < 2){
     fed = true;
+    myservo.attach(servo_pin);
        for (int i = 0; i <= 90; i++)
         {
             myservo.write(i);
@@ -169,6 +193,7 @@ void loop() {
         last = String(local->tm_hour);
         last += ":";
         last += String(local->tm_min);
+        myservo.detach();
       }
 }
 
@@ -182,7 +207,7 @@ String html(int status, String time)
     ptr += "<h1 class=\"title\">FishFeeder Controll App</h1>";
 
     ptr += "<div class =\"content\"> <h3 class=\"subtitle\">Welcome</h3> <hr class=\"hrr\"> <div class=\"setup\">";
-ptr += "<button class = \"button\" onclick = \"location.href='/'\"> Reload</button>";
+ptr += "<button class = \"button\" onclick = \"location.href='/'\"> Reload page</button>";
     ptr += "<div class=\"\">";
     ptr += "<button class = \"button\" onclick = \"location.href='/generate?command=360'\"> Feed the fish</button>";
     ptr += "<button class = \"button\" onclick = \"location.href='/generate?command=0'\"> Close</button>";
@@ -190,7 +215,15 @@ ptr += "<button class = \"button\" onclick = \"location.href='/'\"> Reload</butt
     ptr += "<div class=\"\" style=\"margin-top: 30px;\">";
   ptr += "<h2> Time now is</h2> <p style=\"color:red\">";
   ptr += time;
-  ptr += "</p>";ptr += "</div>";
+  ptr += "</p>";
+  ptr += "</div>";
+  ptr += "<div class=\"\" style=\"margin-top: 30px;\">";
+  ptr += "<h2> Current temperature</h2> <p style=\"color:red\">";
+  ptr += temperatureC_s1;
+  ptr += " C / ";
+  ptr += temperatureC_s2;
+  ptr += " C</p>";
+  ptr += "</div>";
   ptr += "<div class=\"\"  style=\"margin-top: 30px;\">";
   ptr += "<h2> Last feeding was at </h2> <p style=\"color:red\"> ";
   ptr += last_t;
@@ -200,7 +233,7 @@ ptr += "<button class = \"button\" onclick = \"location.href='/'\"> Reload</butt
   ptr += "<form  style=\"margin-top: 20px;\" action = \"/\"><h3>Feed every day at</h3> <input type=\"time\"  style=\"padding: 10px;\" id=\"appt\" name=\"appt\"";
   ptr += " required><hr><input type = \"submit\" class=\"button\"></form>";
   ptr += "<div class=\"\"  style=\"margin-top: 10px;\">";
-  ptr += " <p> Actual setting : ";
+  ptr += " <p> Current setting : ";
   ptr += hours;
   ptr += ":";
   if(minutes == 0){

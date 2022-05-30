@@ -1,4 +1,4 @@
-# fishfeeder
+# Fishfeeder
 
-First iteration of fish feeder
-connected to display, working time, temp, setting plan for feeding and web app
+Beta version working.
+Tested couple days with custom 3D printed enclosure and simple motor DS04-NFC.

@@ -7,8 +7,8 @@
 #include <Wire.h>
 #include "user_interface.h"
 
-const char * ssid = "Home_2G";
-const char * password = "M7ze!2XyXg";
+const char * ssid = "*****";
+const char * password = "*****";
 
 const int SERVOGO = 40;
 const int SERVOSTOP = 90;

@@ -43,7 +43,7 @@ ESP8266WebServer server(80);
 void setup() {
   
   Serial.begin(9600);
-   myservo.attach(D1);
+  myservo.attach(D1);
   
    // wifi_set_sleep_type(LIGHT_SLEEP_T);
   WiFi.config(local_ip, dns, gateway, subnet);
@@ -198,7 +198,7 @@ String html() {
   ptr += "<form  action = \"/first\"><h3>Prvý čas kŕmenia</h3> <input type=\"time\" id=\"apptf\" name=\"appt_one\" required><hr><input type = \"submit\" class=\"button\"></form>";
   ptr += "<form  action = \"/second\"><h3>Druhý čas kŕmenia</h3> <input type=\"time\" id=\"appt\" name=\"appt_two\" required><hr><input type = \"submit\" class=\"button\"></form>";
   ptr += "<div class=\"setting\">";
-   ptr += " <p>Dĺžka: ";
+  ptr += " <p>Dĺžka: ";
   ptr += feedingTime;
   ptr += "s</p>";
   ptr += " <p>Prvý čas: ";
